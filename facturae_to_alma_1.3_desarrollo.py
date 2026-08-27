@@ -79,7 +79,7 @@ class AlmaPOLRecord:
     start_subs_date: datetime = None
     isbn_raw: str = None
     issn_raw: str = None
-    quantity_for_price: Decimal = None
+    quantity_for_pricing: Decimal = None
     funds: list = field(default_factory=list)
     normalized_title_words: list = field(default_factory=list)
     normalized_title_text: str = ""
@@ -96,7 +96,7 @@ class ValidationIssue:
     message: str
     po_line: str = None
     invoice_quantity: Decimal = None
-    alma_quantity_for_price: Decimal = None
+    alma_quantity_for_pricing: Decimal = None
 
 @dataclass
 class InvoiceLineData:
@@ -118,7 +118,7 @@ class InvoiceLineData:
     tertiary_reporting_code: str = None
     fourth_reporting_code: str = None
     fifth_reporting_code: str = None
-    alma_quantity_for_price: Decimal = None
+    alma_quantity_for_pricing: Decimal = None
     funds: list = field(default_factory=list)
     match_status: str = None
     match_message: str = None
@@ -365,7 +365,7 @@ def build_conversion_summary(invoices, validation_issues):
     return summary
 
 class AlmaPOLineLookup:
-    REQUIRED_COLUMNS = ["PO Line", "Reporting Code", "Secondary Reporting Code", "Tertiary Reporting Code", "Start subs date", "Title", "ISSN", "ISBN", "Quantity for price"]
+    REQUIRED_COLUMNS = ["PO Line", "Reporting Code", "Secondary Reporting Code", "Tertiary Reporting Code", "Start subs date", "Title", "ISSN", "ISBN", "Quantity for Pricing"]
     def __init__(self, alma_excel_path):
         self.alma_excel_path = alma_excel_path
         self.records = []
@@ -409,7 +409,7 @@ class AlmaPOLineLookup:
                 start_subs_date=parse_date_for_excel(ws.cell(row=row_idx, column=col_map["Start subs date"]).value),
                 title=title,
                 issn_raw=clean_cell(ws.cell(row=row_idx, column=col_map["ISSN"]).value),
-                quantity_for_price=decimal_or_none(ws.cell(row=row_idx, column=col_map["Quantity for price"]).value),
+                quantity_for_pricing=decimal_or_none(ws.cell(row=row_idx, column=col_map["Quantity for Pricing"]).value),
                 isbn_raw=clean_cell(ws.cell(row=row_idx, column=col_map["ISBN"]).value),
                 funds=funds,
                 normalized_title_words=title_words,
@@ -633,7 +633,7 @@ class AlmaLineEnricher:
             line.tertiary_reporting_code = r.tertiary_reporting_code
             line.fourth_reporting_code = r.fourth_reporting_code
             line.fifth_reporting_code = r.fifth_reporting_code
-            line.alma_quantity_for_price = r.quantity_for_price
+            line.alma_quantity_for_pricing = r.quantity_for_pricing
             line.funds = list(r.funds or [])
             if r.title:
                 line.title = r.title
@@ -644,9 +644,9 @@ class AlmaLineEnricher:
             line.match_candidates = [r.po_line]
 
             if (
-                r.quantity_for_price is not None
+                r.quantity_for_pricing is not None
                 and line.quantity is not None
-                and line.quantity != r.quantity_for_price
+                and line.quantity != r.quantity_for_pricing
             ):
                 self.validation_issues.append(
                     ValidationIssue(
@@ -659,14 +659,14 @@ class AlmaLineEnricher:
                         candidates=[r.po_line],
                         message=(
                             f"La factura indica Quantity={line.quantity}, mientras que "
-                            f"Alma indica Quantity for price={r.quantity_for_price}. "
+                            f"Alma indica Quantity for Pricing={r.quantity_for_pricing}. "
                             "Puede tratarse de una facturacion parcial o de una entrega final "
                             "que complete una linea facturada previamente. "
                             "Revisar manualmente antes de cargar en Alma."
                         ),
                         po_line=r.po_line,
                         invoice_quantity=line.quantity,
-                        alma_quantity_for_price=r.quantity_for_price,
+                        alma_quantity_for_pricing=r.quantity_for_pricing,
                     )
                 )
             return
@@ -844,7 +844,7 @@ class ValidationReportExporter:
         ws.append([
             "Tipo aviso", "Factura", "Linea factura", "PO Line",
             "ISBN XSIG/XML", "ISSN XSIG/XML", "Titulo",
-            "Cantidad factura", "Quantity for price Alma",
+            "Cantidad factura", "Quantity for Pricing Alma",
             "PO Lines candidatas", "Mensaje"
         ])
         for issue in issues:
@@ -857,7 +857,7 @@ class ValidationReportExporter:
                 issue.issn,
                 issue.title,
                 decimal_to_float_or_none(issue.invoice_quantity),
-                decimal_to_float_or_none(issue.alma_quantity_for_price),
+                decimal_to_float_or_none(issue.alma_quantity_for_pricing),
                 "; ".join(issue.candidates),
                 issue.message,
             ]])
