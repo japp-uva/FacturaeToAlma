@@ -1,163 +1,80 @@
 # FacturaeToAlma
 
-**FacturaeToAlma** es una aplicación de escritorio desarrollada en Python para convertir facturas electrónicas en formato **XSIG, XML o TXT** a un fichero Excel compatible con la carga de facturas en **Alma**.
-
-La aplicación está orientada inicialmente al tratamiento de facturas procedentes de Universitas XXI y FACe, aunque su diseño pretende facilitar su adaptación y uso por parte de otras bibliotecas e instituciones.
+**FacturaeToAlma** es una aplicación de escritorio en Python que convierte facturas electrónicas XSIG, XML o TXT a un fichero Excel compatible con la carga de facturas en Alma.
 
 ## Estado del proyecto
 
-- **Versión estable:** `1.0`
-- **Versión de desarrollo actual:** `1.3_dev`
+- **Versión estable actual:** `2.0`
 - **Rama estable:** `stable`
 - **Rama de desarrollo:** `dev`
 
-Las versiones marcadas como `dev` deben considerarse versiones de prueba. Se recomienda comprobar cuidadosamente el Excel generado antes de cargarlo en Alma.
-
 ## Funcionalidades principales
 
-- Conversión de facturas `XSIG`, `XML` y `TXT` a Excel compatible con Alma.
-- Uso de una plantilla Excel de Alma seleccionada por el usuario.
-- Conversión de una factura individual o de un lote de facturas.
-- Generación de varias facturas consecutivas en un único Excel mediante bloques `HINV`, `INV`, `HIL` e `IL`.
-- Validación de que las facturas de un lote correspondan al mismo proveedor.
-- Uso de un único fichero de Alma Analytics por conversión y biblioteca.
-- Localización de líneas de orden de compra mediante:
-  - ISBN;
-  - ISSN;
-  - título normalizado, cuando no existe una coincidencia válida por identificador.
-- Extracción de ISBN e ISSN desde `ArticleCode` y `ItemDescription`.
-- Eliminación del ISBN o ISSN del título cuando aparece añadido al final de `ItemDescription`.
-- Normalización de títulos mediante stopwords en varios idiomas.
-- Incorporación de datos procedentes de Alma Analytics:
-  - `PO Line`;
-  - `Title`;
-  - `Reporting Code`;
-  - `Secondary Reporting Code`;
-  - `Tertiary Reporting Code`;
-  - `Fourth Reporting Code`;
-  - `Fifth Reporting Code`;
-  - `Fund and percent`;
-  - `Start subs date`;
-  - `Quantity for price`.
-- Desplegable de tipos de línea en la columna `Line type`.
-- Generación de un informe Excel de validación cuando existen incidencias.
-- Protección frente a estructuras XML potencialmente peligrosas mediante `defusedxml`.
-- Protección frente a la interpretación de textos no confiables como fórmulas de Excel.
+- Conversión individual o por lotes.
+- Lotes limitados a facturas del mismo proveedor y de la misma biblioteca.
+- Un único fichero Excel de Alma Analytics por conversión.
+- Generación consecutiva de bloques `HINV`, `INV`, `HIL` e `IL`.
+- Búsqueda de PO Lines por ISBN, ISSN y título normalizado.
+- Extracción de ISBN/ISSN desde `ArticleCode` e `ItemDescription`.
+- Soporte para proveedores empresa y autónomos.
+- Incorporación de reporting codes, fondos y fechas de suscripción.
+- Comparación entre `Quantity` de la factura y `Quantity for Pricing` de Alma Analytics.
+- Informe de validación con factura, línea, PO Line, cantidades y mensaje explicativo.
+- Procesamiento XML seguro con `defusedxml`.
+- Protección frente a textos interpretables como fórmulas de Excel.
 
-## Versiones
+## Control de cantidades
 
-### 1.0
+`Quantity` es siempre el número de ejemplares indicado en la factura XML y es el valor que se escribe en la línea `IL`.
 
-Primera versión estable del proyecto.
+`Quantity for Pricing` procede de Alma Analytics y se utiliza exclusivamente como control:
 
-Incluye la conversión individual, búsqueda de PO Lines por ISBN, ISSN o título, lectura dinámica de la plantilla de Alma, fondos, reporting codes, IVA por línea, validaciones y una interfaz gráfica basada en Tkinter/ttk.
+- si coincide con `Quantity`, la información es compatible con una facturación total;
+- si no coincide, puede tratarse de una facturación parcial o de una última entrega que complete una línea facturada previamente.
 
-### 1.1_dev
-
-Añade el procesamiento por lotes.
-
-El modo lote permite seleccionar varias facturas siempre que correspondan:
-
-- al mismo proveedor;
-- a la misma biblioteca;
-- al mismo fichero de Alma Analytics.
-
-El informe de validación identifica la factura concreta a la que pertenece cada incidencia.
-
-### 1.2_dev
-
-Añade mejoras de seguridad y robustez:
-
-- uso de `defusedxml` para procesar XML no confiable;
-- sanitización de textos escritos en Excel;
-- validación y normalización de la ruta usada para abrir la carpeta de salida.
-
-### 1.3_dev
-
-Añade el control de cantidades mediante el campo `Quantity for price` del informe de Alma Analytics.
-
-Cuando la cantidad de una línea de factura no coincide con la cantidad solicitada en la PO Line, la aplicación:
-
-- conserva la PO Line encontrada;
-- incorpora la línea al Excel de carga;
-- mantiene en `IL > Quantity` la cantidad indicada por la factura;
-- genera un aviso `REVISAR CANTIDAD` en el informe de validación.
-
-La diferencia de cantidades puede indicar una posible facturación parcial, aunque también puede corresponder a una entrega final que complete una línea facturada anteriormente. La aplicación no toma una decisión automática y solicita revisión manual.
-
-Para conocer todos los cambios, consulta [`CHANGELOG.md`](CHANGELOG.md).
+Cuando las cantidades no coinciden, la aplicación conserva la PO Line y el `Quantity` de la factura, incorpora la línea al Excel y genera el aviso `REVISAR CANTIDAD`.
 
 ## Requisitos para ejecutar el código fuente
 
-### Python
-
-Se necesita una instalación reciente de Python 3 con soporte para Tkinter.
-
-Para comprobar que Tkinter está disponible:
-
-```bash
-python -m tkinter
-```
-
-### Dependencias externas
-
-Instala las dependencias mediante:
+Se requiere Python 3 con Tkinter y estas dependencias:
 
 ```bash
 python -m pip install openpyxl defusedxml
 ```
 
-Paquetes utilizados:
-
-- `openpyxl`: lectura y escritura de ficheros Excel.
-- `defusedxml`: procesamiento seguro de ficheros XML y XSIG.
-
-El resto de módulos utilizados pertenecen a la biblioteca estándar de Python.
-
-## Ejecución desde el código fuente
+Para ejecutar:
 
 ```bash
-python facturae_to_alma_1_3_dev.py
+python facturae_to_alma_2_0.py
 ```
 
-Antes de ejecutar, puede verificarse la sintaxis con:
+Para comprobar la sintaxis:
 
 ```bash
-python -m py_compile facturae_to_alma_1_3_dev.py
+python -m py_compile facturae_to_alma_2_0.py
 ```
 
-## Uso de la aplicación
+## Uso
 
 ### Factura individual
 
 1. Selecciona **Factura individual**.
-2. Elige el fichero de factura `XSIG`, `XML` o `TXT`.
-3. Selecciona el fichero Excel exportado desde Alma Analytics.
-4. Selecciona la plantilla Excel de carga de facturas de Alma.
-5. Revisa o modifica la ruta del Excel de salida.
-6. Pulsa **Convertir a formato Alma**.
-7. Revisa el mensaje final y, si se genera, el fichero de validación.
+2. Elige la factura XSIG/XML/TXT.
+3. Selecciona el fichero Excel de Alma Analytics.
+4. Selecciona la plantilla Excel de Alma.
+5. Revisa el destino y pulsa **Convertir a formato Alma**.
 
-### Lote de facturas
+### Lote
 
 1. Selecciona **Lote de facturas del mismo proveedor y biblioteca**.
-2. Selecciona varias facturas mediante el diálogo de selección múltiple.
+2. Selecciona varias facturas.
 3. Selecciona un único fichero Excel de Alma Analytics.
-4. Selecciona la plantilla Excel de Alma.
-5. Define el fichero Excel de salida.
-6. Pulsa **Convertir a formato Alma**.
+4. Selecciona la plantilla de Alma.
+5. Define el Excel de salida y ejecuta la conversión.
 
-El lote debe contener exclusivamente facturas:
+La aplicación bloquea lotes con proveedores distintos. La pertenencia a una misma biblioteca es una condición de uso que no puede comprobarse automáticamente con el informe actual.
 
-- del mismo proveedor;
-- de la misma biblioteca;
-- compatibles con el único fichero de Alma Analytics seleccionado.
-
-Si se detectan proveedores distintos, la conversión se cancela.
-
-## Fichero de Alma Analytics
-
-La versión `1.3_dev` espera las siguientes columnas:
+## Columnas requeridas en Alma Analytics
 
 - `PO Line`
 - `Reporting Code`
@@ -167,76 +84,15 @@ La versión `1.3_dev` espera las siguientes columnas:
 - `Title`
 - `ISSN`
 - `ISBN`
-- `Quantity for price`
+- `Quantity for Pricing`
 
-También puede utilizar, cuando estén disponibles:
-
-- `Fourth Reporting Code`
-- `Fifth Reporting Code`
-- una o varias columnas `Fund and percent`
-
-`Quantity for price` corresponde al número de ejemplares solicitado en la línea de orden de compra y se utiliza únicamente como control de validación.
-
-## Estructura del Excel generado
-
-Cada factura se escribe mediante la siguiente estructura:
-
-```text
-HINV
-INV
-HIL
-IL
-IL
-...
-```
-
-En un lote, el siguiente bloque comienza inmediatamente después de la última línea `IL`, sin filas vacías:
-
-```text
-HINV
-INV
-HIL
-IL
-IL
-HINV
-INV
-HIL
-IL
-...
-```
-
-## Criterios de emparejamiento
-
-La aplicación intenta localizar la PO Line en este orden:
-
-1. ISBN.
-2. ISSN.
-3. Título normalizado.
-
-La PO Line se toma exclusivamente del fichero Excel de Alma Analytics. Nunca se toma del XSIG o XML.
-
-Si no existe una coincidencia suficientemente segura, la PO Line se deja vacía y se genera una incidencia para revisión manual.
+También puede utilizar `Fourth Reporting Code`, `Fifth Reporting Code` y columnas `Fund and percent` cuando estén disponibles.
 
 ## Informe de validación
 
-Cuando existen incidencias, se crea un fichero con el sufijo:
+Cuando existen incidencias se genera un fichero con el sufijo `_validacion.xlsx`.
 
-```text
-_validacion.xlsx
-```
-
-El informe puede incluir:
-
-- factura y línea afectadas;
-- PO Line encontrada o candidatas;
-- ISBN e ISSN;
-- título;
-- cantidad facturada;
-- `Quantity for price` de Alma;
-- tipo de incidencia;
-- mensaje explicativo.
-
-Tipos habituales de incidencia:
+Puede incluir estos avisos:
 
 - `SIN COINCIDENCIA`
 - `DUPLICADO ISBN`
@@ -244,100 +100,38 @@ Tipos habituales de incidencia:
 - `TITULO AMBIGUO`
 - `REVISAR CANTIDAD`
 
-## Tipos de línea
-
-El Excel generado incorpora un desplegable en `Line type` con los siguientes valores:
-
-- `REGULAR`
-- `OVERHEAD`
-- `OTHER`
-- `SHIPMENT`
-- `DISCOUNT`
-- `INSURANCE`
-- `ADDITIONAL_CHARGES`
-
-El valor predeterminado es `REGULAR`.
-
-## Tratamiento del IVA
-
-La aplicación utiliza actualmente:
-
-```text
-Inclusive = False
-VAT In Invoice Line Level = YES
-Report TAX = vacío
-```
-
-Los importes y porcentajes de IVA se incorporan en las líneas cuando están disponibles en la factura.
-
 ## Limitaciones conocidas de Alma
 
-Soporte de Ex Libris ha confirmado que la plantilla Excel actual de Alma no permite:
+Soporte de Ex Libris ha confirmado que la plantilla Excel actual no permite:
 
-- indicar el tipo de IVA `Line Exclusive` o «Línea exclusiva»;
+- indicar `Line Exclusive` o «Línea exclusiva»;
 - indicar explícitamente si una línea queda parcial o completamente facturada.
 
-Por este motivo, FacturaeToAlma no puede informar directamente esas opciones en el Excel de carga.
-
-La comparación entre `Quantity` y `Quantity for price` es solo una ayuda para detectar casos que requieren revisión manual. No determina automáticamente si una factura es parcial o completa.
+Por ello, la comparación de cantidades es una ayuda de validación y no un estado transmitido a Alma.
 
 ## Seguridad
 
-La aplicación incluye las siguientes medidas:
+- Parseo XML mediante `defusedxml`.
+- Bloqueo de estructuras XML peligrosas.
+- Sanitización de textos antes de escribirlos en Excel.
+- Apertura de carpeta sin `shell=True`.
+- Registro de errores en `facturae_alma.log`.
 
-- procesamiento XML mediante `defusedxml`;
-- bloqueo de estructuras XML peligrosas;
-- sanitización de textos que comienzan por caracteres interpretables como fórmulas;
-- apertura de carpetas sin `shell=True`;
-- normalización y comprobación de rutas antes de abrirlas;
-- registro de errores en `facturae_alma.log`.
-
-## Ejecutable para Windows
-
-El proyecto puede distribuirse como ejecutable generado con PyInstaller.
-
-Un ejecutable correctamente empaquetado puede ejecutarse en Windows sin instalar Python, `openpyxl` ni `defusedxml`, porque estas dependencias se incluyen en el paquete.
-
-Ejemplo de empaquetado:
+## Empaquetado para Windows
 
 ```bash
-python -m PyInstaller --clean --onefile --windowed --noupx \
-  --name "FacturaeToAlma_1_3_dev" \
-  --collect-submodules=openpyxl \
-  --collect-data=openpyxl \
-  --collect-all=defusedxml \
-  facturae_to_alma_1_3_dev.py
+python -m PyInstaller --clean --onefile --windowed --noupx --name "FacturaeToAlma_2_0" --collect-submodules=openpyxl --collect-data=openpyxl --collect-all=defusedxml facturae_to_alma_2_0.py
 ```
 
-En Windows CMD puede ser necesario escribir el comando en una sola línea o sustituir `\` por `^`.
-
-Algunos antivirus pueden señalar falsos positivos en ejecutables generados con PyInstaller. Para mejorar la confianza en la distribución se recomienda:
-
-- publicar también el código fuente;
-- distribuir el ejecutable desde GitHub Releases;
-- publicar su hash SHA-256;
-- evitar UPX;
-- firmar digitalmente el ejecutable, si se dispone de certificado.
-
-## Filosofía del proyecto
-
-FacturaeToAlma automatiza únicamente los emparejamientos considerados suficientemente seguros.
-
-Cuando existe duda, duplicidad o ausencia de coincidencia, la aplicación evita inventar datos y genera un informe de validación para revisión manual.
+El ejecutable generado puede ejecutarse en Windows sin instalar Python ni las dependencias, siempre que PyInstaller las haya incluido correctamente.
 
 ## Licencia
 
-Este proyecto se distribuye bajo la licencia **GNU General Public License, versión 2.0 únicamente** (`GPL-2.0-only`).
-
-Consulta el fichero de licencia del repositorio para obtener el texto completo.
+El proyecto se distribuye bajo **GNU General Public License version 2.0 only** (`GPL-2.0-only`).
 
 ## Enlaces
 
 - Repositorio: <https://github.com/japp-uva/FacturaeToAlma>
 - Biblioguía: <https://biblioguias.uva.es/facturae_to_alma>
 
-## Contribuciones e incidencias
-
-Las propuestas de mejora, facturas con estructuras no contempladas y errores de conversión pueden comunicarse mediante las incidencias del repositorio.
-
-Al informar de un problema, evita publicar datos personales, fiscales o información sensible contenida en facturas reales. Siempre que sea posible, utiliza ejemplos anonimizados.
+Consulta [`CHANGELOG.md`](CHANGELOG.md) para ver el historial de versiones.
