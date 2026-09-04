@@ -1,74 +1,53 @@
 # Changelog
 
-Todas las modificaciones relevantes del proyecto **FacturaeToAlma** se documentan en este archivo.
-
-El formato sigue una estructura sencilla basada en versiones, con indicación de funcionalidades añadidas, cambios, correcciones, seguridad y limitaciones conocidas.
+Todas las modificaciones relevantes de **FacturaeToAlma** se documentan en este archivo.
 
 ---
 
-## [1.3_dev] - En desarrollo
+## [2.0] - Versión estable
+
+La versión `2.0` estabiliza las funcionalidades desarrolladas y probadas en `1.1_dev`, `1.2_dev` y `1.3_dev`.
 
 ### Añadido
 
-- Lectura del campo `Quantity for price` del fichero obtenido mediante Alma Analytics.
-- Uso de `Quantity for price` para determinar la cantidad total solicitada en cada línea de orden de compra.
-- Comparación entre la cantidad facturada y la cantidad solicitada para deducir si la facturación de cada ítem es parcial o total.
-- Incorporación de esta información al procesamiento interno de las líneas de factura.
-- Identificación de la factura y de la línea correspondiente en los resultados de validación.
+- Conversión de una factura individual o de un lote de facturas.
+- Selección múltiple de facturas XSIG/XML/TXT en modo lote.
+- Validación de que todas las facturas del lote correspondan al mismo proveedor.
+- Generación de varias facturas consecutivas en un único Excel mediante bloques `HINV`, `INV`, `HIL` e `IL`, sin filas vacías entre facturas.
+- Identificación de la factura correspondiente en cada incidencia del informe de validación.
+- Extracción robusta del proveedor desde `SellerParty`, tanto para empresas como para personas físicas o autónomos.
+- Búsqueda del nombre del proveedor en `CorporateName`, `TradeName` o mediante la concatenación de `Name`, `FirstSurname` y `SecondSurname`.
+- Uso interno de `TaxIdentificationNumber` para comprobar que las facturas de un lote pertenecen al mismo proveedor. Este dato no se escribe en el Excel de Alma.
+- Procesamiento seguro de XML mediante `defusedxml`.
+- Protección frente a textos que Excel pudiera interpretar como fórmulas.
+- Lectura del campo `Quantity for Pricing` del informe de Alma Analytics.
+- Comparación entre `Quantity` de la factura y `Quantity for Pricing` de la línea de orden de compra.
+- Generación del aviso `REVISAR CANTIDAD` cuando ambas cantidades no coinciden.
+- Inclusión en el informe de validación de la PO Line, la cantidad facturada y `Quantity for Pricing`.
 
-### Cambiado
+### Comportamiento de cantidades
 
-- El fichero de Alma Analytics aporta ahora, además de los datos utilizados para localizar la `PO Line`, la cantidad solicitada mediante el campo `Quantity for price`.
-- La aplicación puede distinguir internamente entre:
-  - facturación parcial, cuando la cantidad facturada es inferior a `Quantity for price`;
-  - facturación total, cuando la cantidad facturada alcanza o supera `Quantity for price`.
-- Se mantiene un único fichero de Alma Analytics por conversión, correspondiente a una misma biblioteca.
-- Los lotes continúan limitados a facturas del mismo proveedor y de la misma biblioteca.
+- El valor escrito en `IL > Quantity` siempre procede de la factura XML y nunca se sustituye por `Quantity for Pricing`.
+- Si `Quantity` coincide con `Quantity for Pricing`, la información es compatible con una facturación total.
+- Si las cantidades no coinciden, la aplicación no determina automáticamente si la facturación es parcial o total.
+- La diferencia puede corresponder a una facturación parcial o a una última entrega que complete una línea facturada previamente.
+- Cuando existe diferencia, la línea conserva su PO Line, se incorpora al Excel de carga y se genera un aviso para revisión manual.
 
-### Importante
+### Seguridad y robustez
 
-- La deducción de facturación parcial o total se realiza mediante la comparación de cantidades.
-- Esta información puede utilizarse para diagnóstico, validación o revisión posterior.
-- La plantilla Excel actual de Alma no dispone de un campo que permita importar directamente el estado de facturación parcial o completa.
-- Por este motivo, la aplicación puede deducir e informar el estado, pero no transmitirlo automáticamente a Alma mediante la plantilla de carga.
+- Uso de `defusedxml.ElementTree` para bloquear expansión de entidades y otras estructuras XML peligrosas.
+- Sanitización de textos procedentes de las facturas antes de escribirlos en Excel.
+- Normalización y comprobación de la ruta antes de abrir la carpeta de salida.
+- Registro de incidencias técnicas en `facturae_alma.log`.
 
-### Limitaciones conocidas
+### Restricciones del modo lote
 
-- La plantilla Excel actual de Alma no permite indicar la opción `Line Exclusive` o «Línea exclusiva».
-- La plantilla Excel actual de Alma no permite indicar directamente si una línea está parcial o completamente facturada.
-- Las limitaciones anteriores han sido confirmadas por Soporte de Ex Libris.
-- La deducción basada en `Quantity for price` depende de que el campo esté informado correctamente en Alma Analytics.
+- Todas las facturas deben pertenecer al mismo proveedor.
+- Todas las facturas deben corresponder a la misma biblioteca.
+- Cada conversión utiliza un único fichero Excel de Alma Analytics.
+- La biblioteca no puede comprobarse automáticamente porque el informe de Alma Analytics utilizado no contiene esa información.
 
----
-
-## [1.2_dev] - Versión de desarrollo
-
-### Añadido
-
-- Uso de `defusedxml` para reforzar la seguridad en el procesamiento de ficheros XSIG/XML.
-- Protección frente a XML maliciosos con entidades externas, expansión de entidades y estructuras potencialmente peligrosas.
-- Sanitización de textos antes de escribirlos en el Excel de Alma y en el informe de validación.
-- Protección frente a cadenas de texto que comiencen por caracteres interpretables por Excel como fórmulas, como `=`, `+`, `-` o `@`.
-- Mensaje de error específico cuando un XML es bloqueado por motivos de seguridad.
-
-### Cambiado
-
-- Se mantiene la lógica funcional de `1.1_dev`.
-- Se prioriza la seguridad del procesamiento de ficheros sin alterar la estructura del Excel generado para Alma.
-- Se mantiene `tkinter/ttk` como interfaz gráfica.
-- Se mantiene un único fichero Excel de Alma por conversión.
-
-### Seguridad
-
-- Sustitución del parser XML estándar por `defusedxml.ElementTree`.
-- Prevención de ataques de expansión de entidades y estructuras XML peligrosas.
-- Prevención de fórmulas inyectadas desde títulos, nombres de proveedores u otros textos procedentes de las facturas.
-- Normalización de la ruta de salida mediante `os.path.abspath()` antes de abrir la carpeta.
-- Comprobación mediante `os.path.isdir()` de que la ruta de salida corresponde a un directorio existente.
-
-### Dependencias externas
-
-Para ejecutar el código fuente se requieren:
+### Dependencias externas del código fuente
 
 ```text
 openpyxl
@@ -81,176 +60,65 @@ Instalación:
 python -m pip install openpyxl defusedxml
 ```
 
-### Pendiente de evaluación
+### Limitaciones conocidas de Alma
 
-- Ejecución de conversiones en un hilo secundario para evitar el bloqueo visual de la interfaz en lotes grandes.
-- Revisión de la conversión de importes `Decimal` a valores numéricos compatibles con Excel y Alma.
-- Mejora diferenciada de los mensajes de error según el tipo de fallo.
-- Incorporación futura de un apartado de ayuda o ventana «Acerca de».
+- La plantilla Excel actual de Alma no permite indicar `Line Exclusive` o «Línea exclusiva».
+- La plantilla Excel actual de Alma no permite indicar explícitamente si una línea queda parcial o completamente facturada.
+- Estas limitaciones han sido confirmadas por Soporte de Ex Libris.
+
+---
+
+## [1.3_dev] - Versión de desarrollo
+
+- Incorporó la lectura del campo `Quantity for Pricing` de Alma Analytics.
+- Añadió la comparación con `Quantity` de la factura.
+- Añadió el aviso `REVISAR CANTIDAD` y las cantidades al informe de validación.
+- Sirvió como candidata funcional para la versión estable `2.0`.
+
+---
+
+## [1.2_dev] - Versión de desarrollo
+
+- Sustituyó el parser XML estándar por `defusedxml`.
+- Añadió protección frente a estructuras XML peligrosas.
+- Añadió sanitización de textos escritos en Excel.
+- Reforzó la comprobación de la ruta usada para abrir la carpeta de salida.
 
 ---
 
 ## [1.1_dev] - Versión de desarrollo
 
-### Añadido
-
-- Modo de conversión por lotes.
-- Selección múltiple de facturas XSIG/XML/TXT para generar un único Excel de carga en Alma.
-- Validación de que todas las facturas del lote pertenecen al mismo proveedor.
-- Restricción funcional del modo lote a facturas del mismo proveedor y de la misma biblioteca.
-- Uso de un único fichero Excel de Alma por conversión, tanto en modo individual como en modo lote.
-- Escritura de varias facturas consecutivas en el Excel final siguiendo esta estructura, sin filas en blanco entre facturas:
-
-```text
-HINV
-INV
-HIL
-IL
-IL
-HINV
-INV
-HIL
-IL
-...
-```
-
-- Inclusión del número de factura en el informe de validación.
-- Extracción más robusta del proveedor desde `SellerParty`.
-- Soporte para proveedores definidos como empresa o como persona física/autónomo.
-- Búsqueda del nombre del proveedor en este orden:
-  1. `LegalEntity > CorporateName`
-  2. `Individual > CorporateName`
-  3. `LegalEntity > TradeName`
-  4. `Individual > TradeName`
-  5. `Individual > Name + FirstSurname + SecondSurname`
-- Uso interno de `TaxIdentificationNumber` para validar que las facturas del lote pertenecen al mismo proveedor.
-- Mensajes de interfaz adaptados al modo lote.
-- Mención explícita en la interfaz de que los lotes deben corresponder al mismo proveedor y a la misma biblioteca.
-
-### Cambiado
-
-- La aplicación pasa a trabajar internamente con una lista de facturas, incluso en modo individual.
-- `convert_facturae_to_alma_excel()` acepta una factura o varias.
-- El exportador permite escribir varias facturas en un mismo Excel.
-- El informe de validación identifica la factura a la que pertenece cada incidencia.
-- Se mantiene un único fichero Excel de Alma para evitar mapeos por biblioteca.
-- Se descarta la carga simultánea de varios Excel de Alma, ya que dichos ficheros no contienen información suficiente para distinguir bibliotecas.
-- El `TaxIdentificationNumber` no se escribe en el Excel de Alma.
-- Se descarta el uso de `ttkbootstrap`; la interfaz se mantiene en `tkinter/ttk`.
-
-### Corregido
-
-- Mejora del texto de notas para evitar cortes en la interfaz.
-- Ajuste de terminología en la interfaz:
-  - se evita `Excel(es)`;
-  - se usa `Fichero Excel de Alma`.
-- Reducción de textos largos en botones para evitar puntos suspensivos.
-- Validación de lotes con proveedores distintos, impidiendo la conversión.
-
-### Limitaciones conocidas
-
-- El modo lote solo debe utilizarse con facturas del mismo proveedor y de la misma biblioteca.
-- Cada conversión utiliza un único fichero Excel de Alma.
-- La aplicación no puede verificar automáticamente que todas las facturas correspondan a la misma biblioteca, ya que dicha información no está disponible en el fichero Excel de Alma.
-- Si una línea no aparece en el Excel de líneas abiertas de Alma, la aplicación no inventa la `PO Line` y genera un aviso de validación.
+- Añadió el modo lote para facturas del mismo proveedor y la misma biblioteca.
+- Permitió escribir varias facturas en un único Excel de carga.
+- Mejoró la identificación de proveedores empresa y autónomos.
+- Añadió el número de factura al informe de validación.
+- Mantuvo un único fichero Excel de Alma Analytics por conversión.
 
 ---
 
 ## [1.0] - Versión estable inicial
 
-### Añadido
-
 - Primera versión estable de FacturaeToAlma.
-- Conversión de facturas XSIG/XML/TXT a Excel compatible con la carga en Alma.
-- Interfaz gráfica en `tkinter/ttk`.
-- Selección manual de factura, fichero Excel de Alma, plantilla Excel de Alma y fichero de salida.
-- Uso dinámico de la plantilla de Alma para respetar el orden de columnas, la estructura `HINV`, `INV`, `HIL`, `IL` y los estilos básicos.
-- Generación del Excel final con estructura reconocida por Alma.
-- Generación de informe de validación cuando existen incidencias.
-- Enlaces clicables al repositorio del proyecto y a la Biblioguía.
-- Botón para limpiar datos.
-- Botón para abrir la carpeta de salida.
-- Línea de estado y resumen final de conversión.
-
-### Matching con Alma
-
-- Búsqueda de líneas de orden de compra por ISBN e ISSN.
-- Búsqueda alternativa por título cuando no hay ISBN ni ISSN.
-- Comparación de títulos mediante normalización textual y stopwords multilingües.
-- Stopwords integradas para español, inglés, francés, alemán, italiano, catalán, gallego, euskera y portugués.
+- Conversión individual de XSIG/XML/TXT a Excel compatible con Alma.
+- Uso dinámico de la plantilla de Alma.
+- Localización de PO Lines por ISBN, ISSN o título.
 - Extracción de ISBN/ISSN desde `ArticleCode` e `ItemDescription`.
-- Limpieza del título cuando el ISBN/ISSN aparece añadido al final de `ItemDescription`.
-
-### Datos de Alma incorporados
-
-- `PO Line`.
-- `Title`.
-- `Reporting Code`.
-- `Secondary Reporting Code`.
-- `Tertiary Reporting Code`.
-- `Fourth Reporting Code`.
-- `Fifth Reporting Code`.
-- `Fund and percent`.
-- `Start subs date`.
-
-### Reglas aplicadas
-
-- `PO Line` solo se toma del Excel de Alma y nunca del XSIG/XML.
-- Si no hay coincidencia o existen duplicados, `PO Line` queda vacío y se genera validación.
-- Si un reporting code contiene `-1`, ese campo concreto se deja vacío.
-- `VAT In Invoice Line Level` se informa como `YES`.
-- `Report TAX` se deja vacío.
-- `Price` se toma de `GrossAmount`, con respaldo prudente en `UnitPriceWithoutTax`.
-- El IVA de línea se toma de rutas XML concretas.
-
-### Excel de salida
-
-- Inclusión de desplegable en la columna `Line type` con los valores:
-  - `REGULAR`
-  - `OVERHEAD`
-  - `OTHER`
-  - `SHIPMENT`
-  - `DISCOUNT`
-  - `INSURANCE`
-  - `ADDITIONAL_CHARGES`
-- Conservación de la estructura de la plantilla de Alma.
-- Generación de informe `_validacion.xlsx` para líneas sin coincidencia, duplicados y títulos ambiguos.
-
-### Limitaciones conocidas
-
-- La plantilla Excel actual de Alma no permite indicar la opción `Line Exclusive`.
-- La plantilla Excel actual de Alma no permite indicar si una línea está parcial o completamente facturada.
-- Estas limitaciones han sido confirmadas por Soporte de Ex Libris.
-- En caso de líneas cerradas o ya cargadas en Alma, la aplicación no encontrará `PO Line` si dichas líneas no aparecen en el Excel de líneas abiertas.
+- Stopwords multilingües para comparación de títulos.
+- Incorporación de reporting codes, fondos y fechas de suscripción.
+- `VAT In Invoice Line Level` informado como `YES`.
+- Desplegable de `Line type`.
+- Generación de informe de validación.
 
 ---
 
-## Notas generales
+## Filosofía del proyecto
 
-### Filosofía del proyecto
+FacturaeToAlma automatiza únicamente los emparejamientos considerados suficientemente seguros. Si existe duda, duplicidad o ausencia de coincidencia, evita inventar datos y genera un informe para revisión manual.
 
-FacturaeToAlma automatiza únicamente los emparejamientos seguros.
-
-Si existe duda, duplicidad o ausencia de coincidencia, la aplicación deja la `PO Line` vacía y genera un informe de validación para revisión manual.
-
-### Ramas recomendadas
+## Estado actual
 
 ```text
-stable
-  Versiones estables validadas con Alma.
-
-dev
-  Desarrollo de nuevas funcionalidades y pruebas.
-```
-
-### Versión estable actual
-
-```text
-1.0
-```
-
-### Versión de desarrollo actual
-
-```text
-1.3_dev
+Versión estable: 2.0
+Rama estable: stable
+Rama de desarrollo: dev
 ```
