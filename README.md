@@ -258,7 +258,7 @@ El ejecutable correctamente empaquetado puede ejecutarse en Windows sin instalar
 
 ## Licencia
 
-El proyecto se distribuye bajo **GNU General Public License version 2.0 only** (`GPL-2.0-only`).
+El proyecto se distribuye bajo **GNU General Public License version 3.0**.
 
 ## Enlaces
 
