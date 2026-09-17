@@ -6,53 +6,97 @@ La aplicación se orienta inicialmente a facturas procedentes de Universitas XXI
 
 ## Estado del proyecto
 
-- **Versión estable actual:** `3.0`
+- **Versión estable actual:** `3.1`
 - **Rama estable:** `stable`
 - **Rama de desarrollo:** `dev`
+- **Licencia:** GNU General Public License 3.0 únicamente (`GPL-3.0-only`)
 
-## Novedades de la versión 3.0
+## Novedades de la versión 3.1
 
-### Personalización mediante logo
+La versión `3.1` mantiene las funcionalidades de `3.0` y refuerza la seguridad y la trazabilidad a partir de un análisis estático efectuado con Bandit.
 
-La pestaña **Personalizar** permite seleccionar un logo institucional opcional.
+### Apertura segura de carpetas
 
-Formatos admitidos:
+La aplicación normaliza y valida la carpeta de salida antes de abrirla:
 
-- PNG, incluida la transparencia;
-- JPG;
-- JPEG.
+- convierte la ruta a absoluta;
+- resuelve enlaces y componentes mediante `os.path.realpath()`;
+- comprueba que la ruta sea un directorio existente.
 
-El logo:
+En Windows se mantiene `os.startfile()`, que es el mecanismo nativo para abrir la carpeta.
 
-- aparece encima del título de la aplicación;
-- mantiene sus proporciones originales;
-- se reduce cuando supera los 100 píxeles de altura;
-- no se amplía si su altura original es menor;
-- no modifica el archivo de imagen original.
+En macOS y Linux:
 
-El encabezado utiliza este formato:
+- se determina la utilidad correspondiente, `open` o `xdg-open`;
+- se obtiene su ruta mediante `shutil.which()`;
+- se exige una ruta absoluta;
+- se ejecuta mediante `subprocess.run()`;
+- se utiliza expresamente `shell=False`.
 
-```text
-[LOGO]
+### Mejora del tratamiento de excepciones
 
-[Institución] - FacturaeToAlma 3.0
+Si Tkinter no puede aplicar el tema gráfico `clam`, la aplicación:
+
+- captura específicamente `tk.TclError`;
+- registra la incidencia en el log;
+- continúa utilizando el tema gráfico disponible.
+
+Se elimina así el antiguo bloque que ignoraba silenciosamente cualquier excepción.
+
+### Anotaciones de Bandit
+
+Los usos revisados de `subprocess` y `os.startfile()` incluyen anotaciones `# nosec` limitadas a comprobaciones concretas:
+
+- `B404`;
+- `B606`;
+- `B603`.
+
+Estas anotaciones documentan decisiones revisadas y no desactivan globalmente el análisis de seguridad.
+
+## Dependencias
+
+### Dependencias externas
+
+Para ejecutar el código fuente se necesita:
+
+```bash
+python -m pip install openpyxl defusedxml pillow
 ```
 
-Si el logo se mueve, elimina o deja de ser válido, la aplicación continúa funcionando y muestra únicamente el título.
+Paquetes externos:
 
-### Mayor espacio para lotes
+- `openpyxl`: lectura y escritura de ficheros Excel;
+- `defusedxml`: procesamiento seguro de XML;
+- `Pillow`: carga y redimensionado del logo institucional.
 
-La tabla **Facturas del lote** muestra inicialmente diez filas y puede crecer al ampliar la ventana.
+### Biblioteca estándar
 
-### Nombre de salida de los lotes
+`shutil` forma parte de la biblioteca estándar de Python. No debe instalarse mediante `pip`.
 
-El nombre propuesto para un Excel generado en modo lote sigue el patrón:
+También pertenecen a la biblioteca estándar módulos como `os`, `sys`, `json`, `queue`, `threading`, `re`, `logging`, `subprocess`, `platform`, `datetime`, `decimal`, `difflib` y `tkinter`.
 
-```text
-Lote_[nombre de la primera factura]_Alma.xlsx
+## Comprobación y ejecución
+
+Comprobación de sintaxis:
+
+```bash
+python -m py_compile facturae_to_alma_3_1.py
 ```
 
-El usuario puede modificar libremente la ruta y el nombre mediante **Elegir destino**.
+Ejecución:
+
+```bash
+python facturae_to_alma_3_1.py
+```
+
+Auditoría con Bandit:
+
+```bash
+python -m pip install bandit
+python -m bandit -r facturae_to_alma_3_1.py
+```
+
+Las anotaciones específicas `# nosec` deberían evitar que Bandit vuelva a informar de los usos revisados, sin ocultar otros hallazgos futuros.
 
 ## Interfaz
 
@@ -62,45 +106,47 @@ La aplicación se organiza en tres pestañas:
 
 Contiene:
 
-- modo factura individual;
+- factura individual;
 - modo lote;
 - selección del informe de Alma Analytics;
 - selección de la plantilla de Alma;
 - destino del Excel final;
-- botones de conversión y gestión;
+- conversión y gestión de la salida;
 - estado del proceso.
 
 ### Personalizar
 
-Permite configurar opcionalmente:
+Permite configurar:
 
 - institución;
 - directorio de facturas FACe;
 - directorio del fichero Excel de Alma Analytics;
 - directorio de plantilla Alma;
 - directorio de Excel finales;
-- logo institucional.
-
-Incluye los botones:
-
-- **Guardar preferencias**;
-- **Restablecer valores**;
-- **Seleccionar logo...**;
-- **Eliminar logo**.
+- logo institucional opcional.
 
 ### Ayuda
 
-Incluye:
+Incluye instrucciones, limitaciones conocidas, licencia y enlaces al repositorio y a la Biblioguía.
 
-- instrucciones básicas;
-- explicación del modo lote;
-- información sobre el informe de validación;
-- explicación de `REVISAR CANTIDAD`;
-- limitaciones confirmadas por Ex Libris;
-- licencia;
-- enlaces a GitHub y a la Biblioguía.
+## Logo institucional
 
-## Gestión de preferencias
+Se admiten:
+
+- PNG, incluida la transparencia;
+- JPG;
+- JPEG.
+
+El logo:
+
+- aparece encima del título;
+- mantiene sus proporciones;
+- se reduce hasta un máximo de 100 píxeles de altura;
+- no se amplía cuando es más pequeño.
+
+La aplicación guarda la ruta del logo, no una copia de la imagen.
+
+## Preferencias
 
 La configuración se guarda normalmente en:
 
@@ -108,104 +154,43 @@ La configuración se guarda normalmente en:
 %APPDATA%\FacturaeToAlma\config.json
 ```
 
-El fichero puede incluir:
+Puede incluir:
 
 - institución;
 - directorios personalizados;
 - últimos directorios utilizados;
-- última plantilla seleccionada;
+- última plantilla;
 - ruta del logo.
-
-La aplicación guarda la **ruta del logo**, no una copia de la imagen. Por ello, el archivo debe permanecer en una ubicación estable.
-
-Ejemplo:
-
-```text
-C:\FacturaeToAlma\recursos\logo.png
-```
-
-Si se copia la configuración a otro ordenador, la ruta solo funcionará si el logo existe allí en la misma ubicación. Cada institución puede seleccionar de nuevo su logo desde la pestaña **Personalizar**.
-
-## Funcionalidades principales
-
-- Conversión individual o por lotes.
-- Uso dinámico de la plantilla Excel de Alma.
-- Generación consecutiva de bloques `HINV`, `INV`, `HIL` e `IL`.
-- Localización de PO Lines por ISBN, ISSN y título normalizado.
-- Extracción de ISBN/ISSN desde `ArticleCode` e `ItemDescription`.
-- Soporte para proveedores empresa y personas físicas o autónomos.
-- Incorporación de reporting codes, fondos, fechas de suscripción e IVA.
-- Desplegable de `Line type`.
-- Comparación entre `Quantity` y `Quantity for Pricing`.
-- Informe de validación por factura y línea.
-- Ejecución de la conversión en segundo plano.
-- Procesamiento XML seguro con `defusedxml`.
-- Protección frente a textos interpretables como fórmulas de Excel.
-
-## Requisitos para ejecutar el código fuente
-
-Se necesita Python 3 con Tkinter y estas dependencias externas:
-
-```text
-openpyxl
-defusedxml
-Pillow
-```
-
-Instalación:
-
-```bash
-python -m pip install openpyxl defusedxml pillow
-```
-
-Comprobación de sintaxis:
-
-```bash
-python -m py_compile facturae_to_alma_3_0.py
-```
-
-Ejecución:
-
-```bash
-python facturae_to_alma_3_0.py
-```
-
-Para comprobar Tkinter:
-
-```bash
-python -m tkinter
-```
 
 ## Uso con una factura individual
 
-1. Abre la pestaña **Convertir**.
+1. Abre **Convertir**.
 2. Selecciona **Factura individual**.
-3. Elige una factura XSIG/XML/TXT.
+3. Elige la factura XSIG/XML/TXT.
 4. Selecciona el fichero Excel de Alma Analytics.
 5. Selecciona la plantilla Excel de Alma.
-6. Revisa el destino propuesto.
+6. Revisa el destino.
 7. Pulsa **Convertir a formato Alma**.
-8. Revisa el mensaje final y el informe de validación, si se genera.
+8. Revisa el resultado y el informe de validación, si se genera.
 
 ## Uso en modo lote
 
 1. Selecciona **Lote de facturas del mismo proveedor y biblioteca**.
-2. Añade las facturas al listado.
-3. Revisa el número de factura, el proveedor y el nombre del fichero.
+2. Añade las facturas.
+3. Revisa número, proveedor y fichero.
 4. Elimina u ordena elementos si es necesario.
 5. Selecciona un único fichero Excel de Alma Analytics.
-6. Selecciona la plantilla de Alma.
-7. Revisa el nombre `Lote_[primera factura]_Alma.xlsx` propuesto para la salida.
+6. Selecciona la plantilla.
+7. Revisa el nombre de salida propuesto.
 8. Ejecuta la conversión.
 
-La aplicación detecta:
+La aplicación detecta rutas repetidas, números de factura duplicados, facturas ilegibles y proveedores distintos.
 
-- rutas repetidas;
-- números de factura duplicados;
-- facturas que no puedan analizarse;
-- proveedores distintos.
+El nombre propuesto para un lote sigue este patrón:
 
-Todos los documentos del lote deben corresponder al mismo proveedor y a la misma biblioteca. La biblioteca no puede verificarse automáticamente con el informe actual de Alma Analytics.
+```text
+Lote_[nombre de la primera factura]_Alma.xlsx
+```
 
 ## Columnas requeridas en Alma Analytics
 
@@ -219,42 +204,22 @@ Todos los documentos del lote deben corresponder al mismo proveedor y a la misma
 - `ISBN`
 - `Quantity for Pricing`
 
-Cuando están disponibles, también se utilizan:
-
-- `Fourth Reporting Code`
-- `Fifth Reporting Code`
-- una o varias columnas `Fund and percent`
+Cuando están disponibles, también se utilizan `Fourth Reporting Code`, `Fifth Reporting Code` y columnas `Fund and percent`.
 
 ## Control de cantidades
 
 `IL > Quantity` siempre conserva el número de ejemplares indicado en la factura XML.
 
-`Quantity for Pricing` procede de Alma Analytics y se utiliza exclusivamente como control:
+`Quantity for Pricing` se utiliza exclusivamente como control:
 
 - si coincide con `Quantity`, la información es compatible con una facturación total;
-- si no coincide, puede tratarse de una facturación parcial o de una última entrega que complete una línea facturada previamente.
+- si no coincide, puede tratarse de una facturación parcial o de una última entrega que complete una línea previamente facturada.
 
-Una diferencia genera `REVISAR CANTIDAD`, pero no modifica la PO Line ni la cantidad de la factura.
+Una diferencia genera `REVISAR CANTIDAD`, pero no modifica la PO Line ni la cantidad de factura.
 
 ## Informe de validación
 
-Cuando existen incidencias se genera un fichero con el sufijo:
-
-```text
-_validacion.xlsx
-```
-
-Puede incluir:
-
-- factura;
-- línea;
-- PO Line;
-- ISBN e ISSN;
-- título;
-- cantidad facturada;
-- `Quantity for Pricing`;
-- candidatas;
-- mensaje explicativo.
+Cuando existen incidencias se genera un fichero con el sufijo `_validacion.xlsx`.
 
 Avisos habituales:
 
@@ -264,29 +229,24 @@ Avisos habituales:
 - `TITULO AMBIGUO`
 - `REVISAR CANTIDAD`
 
-## Resultado de la conversión
+## Seguridad
 
-Sin incidencias, el cuadro final comienza con:
+- XML procesado con `defusedxml`.
+- Bloqueo de estructuras XML peligrosas.
+- Sanitización de textos antes de escribirlos en Excel.
+- Ejecución externa sin `shell=True`.
+- Resolución de rutas de ejecutables con `shutil.which()`.
+- Validación de carpetas antes de abrirlas.
+- Preferencias JSON sin credenciales.
+- Registro de incidencias en `facturae_alma.log`.
 
-```text
-CONVERSION COMPLETA SIN INCIDENCIAS
+## Empaquetado para Windows
+
+```bash
+python -m PyInstaller --clean --onefile --windowed --noupx --name "FacturaeToAlma_3_1" --collect-submodules=openpyxl --collect-data=openpyxl --collect-all=defusedxml --collect-all=PIL facturae_to_alma_3_1.py
 ```
 
-Cuando se genera un informe de validación, comienza con:
-
-```text
-INCIDENCIAS EN LA CONVERSION
-```
-
-## Tratamiento del IVA
-
-La aplicación utiliza actualmente:
-
-```text
-Inclusive = False
-VAT In Invoice Line Level = YES
-Report TAX = vacío
-```
+El ejecutable correctamente empaquetado puede ejecutarse sin instalar Python ni las dependencias externas.
 
 ## Limitaciones conocidas de Alma
 
@@ -295,34 +255,13 @@ Soporte de Ex Libris confirmó que la plantilla Excel actual no permite:
 - indicar `Line Exclusive` o «Línea exclusiva»;
 - indicar explícitamente si una línea queda parcial o completamente facturada.
 
-Por ello, la comparación de cantidades es una ayuda para la revisión y no un estado transmitido a Alma.
-
-## Seguridad
-
-- XML procesado mediante `defusedxml`.
-- Bloqueo de estructuras XML peligrosas.
-- Sanitización de textos antes de escribirlos en Excel.
-- Apertura de carpetas sin `shell=True`.
-- Configuración JSON sin contraseñas ni credenciales.
-- Registro de errores en `facturae_alma.log`.
-
-## Empaquetado para Windows
-
-Para crear un ejecutable autónomo con PyInstaller:
-
-```bash
-python -m PyInstaller --clean --onefile --windowed --noupx --name "FacturaeToAlma_3_0" --collect-submodules=openpyxl --collect-data=openpyxl --collect-all=defusedxml --collect-all=PIL facturae_to_alma_3_0.py
-```
-
-El ejecutable correctamente empaquetado puede ejecutarse en Windows sin instalar Python, `openpyxl`, `defusedxml` ni Pillow.
-
-El logo no se integra en el ejecutable, porque es una preferencia configurable. Cada instalación debe conservar el logo en una ruta accesible.
+La comparación con `Quantity for Pricing` es una ayuda para la revisión, no un estado transmitido a Alma.
 
 ## Licencia
 
 El proyecto se distribuye bajo la **GNU General Public License version 3.0 only** (`GPL-3.0-only`).
 
-La cabecera del código utiliza:
+La cabecera SPDX del código es:
 
 ```text
 SPDX-License-Identifier: GPL-3.0-only
