@@ -4,58 +4,61 @@ Todas las modificaciones relevantes de **FacturaeToAlma** se documentan en este 
 
 ---
 
-## [3.0] - Versión estable
+## [3.1] - Versión estable
 
-La versión `3.0` estabiliza las mejoras introducidas en `2.5_dev` y añade personalización institucional mediante un logo opcional.
+La versión `3.1` mantiene la funcionalidad de `3.0` y corrige los avisos de bajo impacto detectados mediante una auditoría estática con Bandit.
 
-### Añadido
+### Seguridad y robustez
 
-- Logo institucional opcional en la cabecera de la aplicación.
-- Selección del logo desde la pestaña **Personalizar**.
-- Compatibilidad con imágenes:
-  - PNG, incluida la transparencia;
-  - JPG;
-  - JPEG.
-- Redimensionado proporcional del logo hasta una altura máxima de 100 píxeles.
-- Conservación del tamaño original cuando el logo mide menos de 100 píxeles de alto.
-- Persistencia de la ruta del logo en el fichero de configuración.
-- Botón **Eliminar logo** para retirar la imagen de la cabecera.
-- Gestión segura de logos inexistentes, desplazados o no válidos, sin impedir el inicio de la aplicación ni la conversión.
-- Dependencia de Pillow para cargar, convertir y redimensionar imágenes.
+- Revisado el uso del módulo estándar `subprocess`.
+- Sustituidas las llamadas a `subprocess.Popen()` por `subprocess.run()` en la apertura de carpetas de macOS y Linux.
+- Configuración explícita de `shell=False` en las llamadas externas.
+- Resolución previa de la ruta absoluta de `open` o `xdg-open` mediante `shutil.which()`.
+- Comprobación de que la utilidad externa encontrada utiliza una ruta absoluta antes de ejecutarla.
+- Normalización de la carpeta de salida mediante `os.path.abspath()` y `os.path.realpath()`.
+- Verificación de que la ruta corresponde a un directorio existente antes de abrirla.
+- Conservación de `os.startfile()` en Windows como mecanismo nativo para abrir carpetas.
+- Incorporación de anotaciones `# nosec` específicas y justificadas para los avisos revisados de Bandit:
+  - `B404`, importación deliberada de `subprocess`;
+  - `B606`, uso controlado de `os.startfile()`;
+  - `B603`, ejecución sin shell con ejecutable absoluto y argumento validado.
+- Las supresiones se limitan a cada identificador concreto y no desactivan genéricamente el análisis de seguridad.
 
-### Cambiado
+### Corregido
 
-- Licencia actualizada a GNU General Public License 3.0 únicamente, identificada mediante `GPL-3.0-only`.
-- Cabecera reorganizada para mostrar primero el logo y, debajo, el título de la aplicación.
-- Formato del título actualizado a:
+- Sustituido el bloque silencioso `except Exception: pass` utilizado al aplicar el tema gráfico.
+- Captura específica de `tk.TclError` cuando el tema `clam` no está disponible.
+- Registro del fallo del tema gráfico mediante `logging.warning()`, manteniendo el tema predeterminado como alternativa.
+- Eliminados los usos de rutas parciales para ejecutar `open` o `xdg-open`.
 
-```text
-[Institución] - FacturaeToAlma 3.0
-```
+### Auditoría
 
-- Altura inicial de la ventana ampliada a 940 píxeles.
-- Altura mínima de la ventana ampliada a 820 píxeles.
-- La tabla **Facturas del lote** muestra inicialmente diez filas en lugar de seis.
-- El nombre propuesto para el Excel generado en modo lote utiliza el patrón:
+El análisis original de `3.0` notificó siete avisos de severidad baja y ninguno de severidad media o alta:
 
-```text
-Lote_[nombre de la primera factura]_Alma.xlsx
-```
+- `B404`: importación de `subprocess`;
+- `B110`: excepción ignorada mediante `pass`;
+- `B606`: apertura de recurso mediante `os.startfile()`;
+- `B607`: ejecución de utilidades mediante rutas parciales;
+- `B603`: ejecución de procesos sin shell pendiente de revisión de argumentos.
 
-- La pestaña **Ayuda** muestra la licencia `GPL-3.0-only`.
+La versión `3.1` corrige los patrones mejorables y documenta expresamente los usos residuales considerados necesarios y seguros.
 
-### Gestión de la ruta del logo
+### Conservado sin cambios funcionales
 
-- La aplicación guarda la ruta absoluta del archivo seleccionado, no una copia de la imagen.
-- La ruta se guarda normalmente en:
-
-```text
-%APPDATA%\FacturaeToAlma\config.json
-```
-
-- Si `%APPDATA%` no está disponible, se utiliza un fichero de configuración junto a la aplicación.
-- Cuando la imagen se mueve o elimina, la aplicación se inicia sin logo y mantiene operativa la conversión.
-- Para distribuir una personalización institucional entre equipos, el logo debe existir en una ruta válida en cada equipo.
+- Conversión individual y por lotes.
+- Gestión visual y editable de lotes.
+- Detección de rutas y números de factura duplicados.
+- Restricción de los lotes a un mismo proveedor y una misma biblioteca.
+- Uso de un único fichero Excel de Alma Analytics por conversión.
+- Preferencias persistentes e institución personalizable.
+- Logo institucional opcional.
+- Conversión en segundo plano.
+- Emparejamiento por ISBN, ISSN y título normalizado.
+- Comparación entre `Quantity` y `Quantity for Pricing`.
+- Aviso `REVISAR CANTIDAD`.
+- Generación del Excel de Alma y del informe de validación.
+- Procesamiento XML mediante `defusedxml`.
+- Sanitización de textos antes de escribirlos en Excel.
 
 ### Dependencias externas del código fuente
 
@@ -65,54 +68,42 @@ defusedxml
 Pillow
 ```
 
+`shutil` forma parte de la biblioteca estándar de Python y no requiere instalación adicional.
+
 Instalación:
 
 ```bash
 python -m pip install openpyxl defusedxml pillow
 ```
 
-### Conservado sin cambios funcionales
+---
 
-- Interfaz por pestañas: **Convertir**, **Personalizar** y **Ayuda**.
-- Preferencias persistentes de institución y directorios.
-- Gestión visual de lotes.
-- Detección de rutas y números de factura duplicados.
+## [3.0] - Versión estable
+
+- Estabilización de las mejoras introducidas en `2.5_dev`.
+- Interfaz organizada en las pestañas **Convertir**, **Personalizar** y **Ayuda**.
+- Logo institucional opcional en PNG, JPG o JPEG.
+- Conservación de la transparencia en imágenes PNG.
+- Redimensionado proporcional del logo hasta 100 píxeles de altura.
+- Título situado debajo del logo.
+- Institución y directorios personalizables.
+- Preferencias persistentes en `%APPDATA%`.
+- Gestión visual de facturas en modo lote.
 - Conversión en segundo plano.
-- Emparejamiento por ISBN, ISSN y título normalizado.
-- Comparación entre `Quantity` y `Quantity for Pricing`.
-- Conservación del `Quantity` indicado en la factura XML.
-- Aviso `REVISAR CANTIDAD`.
-- Estructura `HINV`, `INV`, `HIL` e `IL`.
-- Fondos, reporting codes, fechas de suscripción e IVA.
-- Desplegable `Line type`.
-- Procesamiento XML seguro mediante `defusedxml`.
-- Sanitización de textos antes de escribirlos en Excel.
+- Mayor altura de la ventana y del listado de facturas.
+- Nombre de salida del lote con el patrón `Lote_[primera factura]_Alma.xlsx`.
+- Cambio de licencia a `GPL-3.0-only`.
 
 ---
 
 ## [2.5_dev] - Versión de desarrollo
 
-### Añadido
-
-- Interfaz estructurada mediante las pestañas **Convertir**, **Personalizar** y **Ayuda**.
-- Institución y directorios personalizables.
-- Persistencia de preferencias en `%APPDATA%`.
-- Memoria de los últimos directorios y de la última plantilla.
-- Gestión visual del lote mediante `ttk.Treeview`.
-- Vista previa del número de factura, proveedor y fichero.
-- Funciones para añadir, quitar, ordenar y vaciar facturas del lote.
-- Detección de rutas repetidas y números de factura duplicados.
-- Conversión en un hilo secundario para evitar el bloqueo de la interfaz.
-- Comunicación con Tkinter mediante `queue.Queue` y `root.after()`.
-- Mensajes finales diferenciados según existan o no incidencias.
-- Clasificación más clara de errores.
-
-### Cambiado
-
-- El botón **Convertir a formato Alma** pasó a mostrarse con mayor tamaño y texto en negrita.
-- Los enlaces de GitHub y la Biblioguía pasaron a la pestaña **Ayuda**.
-- El modo lote pasó a gestionarse mediante una lista visible y editable.
-- La carpeta inicial de los selectores pasó a depender de preferencias y rutas utilizadas anteriormente.
+- Introdujo la interfaz por pestañas.
+- Añadió preferencias persistentes.
+- Añadió la lista visual y editable de facturas de lote.
+- Incorporó detección de rutas y facturas duplicadas.
+- Incorporó conversión en segundo plano.
+- Añadió mensajes finales diferenciados según existieran incidencias.
 
 ---
 
@@ -121,12 +112,11 @@ python -m pip install openpyxl defusedxml pillow
 - Estabilización del modo individual y del modo lote.
 - Lotes restringidos a un mismo proveedor y una misma biblioteca.
 - Uso de un único fichero Excel de Alma Analytics por conversión.
-- Extracción robusta del proveedor para empresas y personas físicas.
-- Procesamiento seguro mediante `defusedxml`.
+- Extracción robusta de proveedores empresa y personas físicas.
+- Procesamiento XML seguro mediante `defusedxml`.
 - Protección frente a fórmulas de Excel.
 - Lectura de `Quantity for Pricing`.
-- Comparación entre `Quantity` y `Quantity for Pricing`.
-- Generación del aviso `REVISAR CANTIDAD` cuando ambas cantidades no coinciden.
+- Comparación con `Quantity` y generación de `REVISAR CANTIDAD`.
 
 ---
 
@@ -134,7 +124,7 @@ python -m pip install openpyxl defusedxml pillow
 
 - Incorporó la lectura correcta de `Quantity for Pricing`.
 - Añadió la comparación con `Quantity` de la factura.
-- Añadió el aviso `REVISAR CANTIDAD` y ambas cantidades al informe de validación.
+- Añadió ambas cantidades al informe de validación.
 
 ---
 
@@ -143,28 +133,26 @@ python -m pip install openpyxl defusedxml pillow
 - Sustituyó el parser XML estándar por `defusedxml`.
 - Añadió protección frente a estructuras XML peligrosas.
 - Añadió sanitización de textos escritos en Excel.
-- Reforzó la comprobación de la ruta usada para abrir la carpeta de salida.
+- Reforzó la comprobación de rutas.
 
 ---
 
 ## [1.1_dev] - Versión de desarrollo
 
-- Añadió el modo lote para facturas del mismo proveedor y la misma biblioteca.
-- Permitió escribir varias facturas en un único Excel de carga.
-- Mejoró la identificación de proveedores empresa y autónomos.
+- Añadió el modo lote.
+- Mejoró la identificación de proveedores.
 - Añadió el número de factura al informe de validación.
 
 ---
 
 ## [1.0] - Versión estable inicial
 
-- Primera versión estable de FacturaeToAlma.
 - Conversión individual de XSIG/XML/TXT a Excel compatible con Alma.
 - Uso dinámico de la plantilla de Alma.
 - Localización de PO Lines por ISBN, ISSN o título.
 - Incorporación de reporting codes, fondos y fechas de suscripción.
 - Desplegable de `Line type`.
-- Generación de informe de validación.
+- Generación del informe de validación.
 
 ---
 
@@ -180,7 +168,7 @@ La comparación con `Quantity for Pricing` es una ayuda para la revisión y no u
 ## Estado actual
 
 ```text
-Versión estable: 3.0
+Versión estable: 3.1
 Rama estable: stable
 Rama de desarrollo: dev
 ```
