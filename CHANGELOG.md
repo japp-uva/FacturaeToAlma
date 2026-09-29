@@ -4,95 +4,130 @@ Todas las modificaciones relevantes de **FacturaeToAlma** se documentan en este 
 
 ---
 
-## [3.1] - Versión estable
+## [3.2_dev] - En desarrollo
 
-La versión `3.1` mantiene la funcionalidad de `3.0` y corrige los avisos de bajo impacto detectados mediante una auditoría estática con Bandit.
+La versión `3.2_dev` mantiene las medidas de seguridad y las funcionalidades de `3.1`, y mejora el emparejamiento por título para bases de datos, plataformas, paquetes electrónicos y descripciones comerciales extensas.
 
-### Seguridad y robustez
+### Añadido
 
-- Revisado el uso del módulo estándar `subprocess`.
-- Sustituidas las llamadas a `subprocess.Popen()` por `subprocess.run()` en la apertura de carpetas de macOS y Linux.
-- Configuración explícita de `shell=False` en las llamadas externas.
-- Resolución previa de la ruta absoluta de `open` o `xdg-open` mediante `shutil.which()`.
-- Comprobación de que la utilidad externa encontrada utiliza una ruta absoluta antes de ejecutarla.
-- Normalización de la carpeta de salida mediante `os.path.abspath()` y `os.path.realpath()`.
-- Verificación de que la ruta corresponde a un directorio existente antes de abrirla.
-- Conservación de `os.startfile()` en Windows como mecanismo nativo para abrir carpetas.
-- Incorporación de anotaciones `# nosec` específicas y justificadas para los avisos revisados de Bandit:
-  - `B404`, importación deliberada de `subprocess`;
-  - `B606`, uso controlado de `os.startfile()`;
-  - `B603`, ejecución sin shell con ejecutable absoluto y argumento validado.
-- Las supresiones se limitan a cada identificador concreto y no desactivan genéricamente el análisis de seguridad.
+- Coincidencia exacta de títulos después de normalizar mayúsculas, minúsculas, tildes, puntuación y stopwords.
+- Coincidencia por **inclusión segura de secuencias completas de palabras** antes de aplicar el algoritmo histórico de similitud.
+- Reconocimiento de títulos breves y distintivos incluidos dentro de descripciones comerciales más largas.
+- Identificación interna del método utilizado para comparar títulos:
+  - `EXACT`;
+  - `CONTAINMENT`;
+  - `SIMILARITY`.
+- Inclusión del método de comparación en el mensaje de validación cuando existen varias PO Lines candidatas por título.
+- Lista de términos genéricos que no pueden provocar por sí solos una coincidencia automática por inclusión.
+- Pruebas específicas para títulos de bases de datos y para evitar falsos positivos evidentes.
 
-### Corregido
+### Orden de comparación por título
 
-- Sustituido el bloque silencioso `except Exception: pass` utilizado al aplicar el tema gráfico.
-- Captura específica de `tk.TclError` cuando el tema `clam` no está disponible.
-- Registro del fallo del tema gráfico mediante `logging.warning()`, manteniendo el tema predeterminado como alternativa.
-- Eliminados los usos de rutas parciales para ejecutar `open` o `xdg-open`.
+Cuando no se ha localizado previamente una PO Line por ISBN o ISSN, la aplicación utiliza este orden:
 
-### Auditoría
+1. Coincidencia exacta del título normalizado.
+2. Inclusión segura de una secuencia completa de palabras.
+3. Algoritmo histórico de similitud.
+4. Ausencia de coincidencia o coincidencia ambigua.
 
-El análisis original de `3.0` notificó siete avisos de severidad baja y ninguno de severidad media o alta:
+La prioridad general continúa siendo:
 
-- `B404`: importación de `subprocess`;
-- `B110`: excepción ignorada mediante `pass`;
-- `B606`: apertura de recurso mediante `os.startfile()`;
-- `B607`: ejecución de utilidades mediante rutas parciales;
-- `B603`: ejecución de procesos sin shell pendiente de revisión de argumentos.
+1. ISBN.
+2. ISSN.
+3. Título.
 
-La versión `3.1` corrige los patrones mejorables y documenta expresamente los usos residuales considerados necesarios y seguros.
+Por tanto, la nueva lógica de inclusión no interviene en los libros o revistas cuando ya existe una coincidencia válida por ISBN o ISSN.
+
+### Casos resueltos
+
+La inclusión segura permite relacionar, entre otros, ejemplos como:
+
+```text
+MATHSCINET - ONLINE PACKAGE
+MathSciNet
+```
+
+Y también una descripción comercial extensa que contenga el nombre distintivo:
+
+```text
+Suscripción AENORmás 2026 Precios especiales...
+AENORMás
+```
+
+### Salvaguardas frente a falsos positivos
+
+- La comparación se realiza con palabras completas, no con fragmentos de caracteres.
+- Un término como `art` no coincide con `artificial`.
+- Un título de una sola palabra debe tener al menos cinco caracteres.
+- Un título de una sola palabra no puede pertenecer a la lista de términos genéricos.
+- Entre los términos comerciales genéricos excluidos se encuentran:
+  - `online`;
+  - `package`;
+  - `database`;
+  - `subscription`;
+  - `platform`;
+  - `service`;
+  - y sus equivalentes en español incluidos en el código.
+- Si la inclusión devuelve varias PO Lines diferentes, no se asigna ninguna automáticamente y se genera `TITULO AMBIGUO`.
+- El algoritmo tradicional de similitud se conserva como último recurso.
+
+### Pruebas realizadas
+
+- Coincidencia sin distinguir mayúsculas y minúsculas.
+- `MATHSCINET - ONLINE PACKAGE` frente a `MathSciNet`.
+- Descripción comercial extensa frente a `AENORMás`.
+- Rechazo de `art` dentro de `artificial`.
+- Rechazo de una coincidencia basada únicamente en el término genérico `Online`.
+- Detección de ambigüedad cuando dos PO Lines contienen el mismo título incluido.
 
 ### Conservado sin cambios funcionales
 
+- Medidas de seguridad y correcciones de Bandit incorporadas en `3.1`.
 - Conversión individual y por lotes.
 - Gestión visual y editable de lotes.
 - Detección de rutas y números de factura duplicados.
 - Restricción de los lotes a un mismo proveedor y una misma biblioteca.
 - Uso de un único fichero Excel de Alma Analytics por conversión.
-- Preferencias persistentes e institución personalizable.
-- Logo institucional opcional.
+- Preferencias persistentes, institución y logo personalizables.
 - Conversión en segundo plano.
-- Emparejamiento por ISBN, ISSN y título normalizado.
 - Comparación entre `Quantity` y `Quantity for Pricing`.
 - Aviso `REVISAR CANTIDAD`.
 - Generación del Excel de Alma y del informe de validación.
 - Procesamiento XML mediante `defusedxml`.
 - Sanitización de textos antes de escribirlos en Excel.
 
-### Dependencias externas del código fuente
+### Pendiente de evaluación
 
-```text
-openpyxl
-defusedxml
-Pillow
-```
+- Revisión de coincidencias por inclusión durante pruebas con facturas reales.
+- Especial atención a libros sin ISBN o ISSN y títulos de una sola palabra.
+- Posible incorporación futura del método de coincidencia como columna específica del informe de validación.
 
-`shutil` forma parte de la biblioteca estándar de Python y no requiere instalación adicional.
+---
 
-Instalación:
+## [3.1] - Versión estable
 
-```bash
-python -m pip install openpyxl defusedxml pillow
-```
+- Corrección de avisos de bajo impacto detectados mediante Bandit.
+- Sustitución de `subprocess.Popen()` por `subprocess.run()`.
+- Uso explícito de `shell=False`.
+- Resolución de `open` y `xdg-open` mediante `shutil.which()`.
+- Normalización y validación reforzada de rutas.
+- Corrección del bloque silencioso `except Exception: pass`.
+- Captura específica de `tk.TclError` y registro mediante `logging.warning()`.
+- Anotaciones `# nosec` específicas y justificadas para `B404`, `B606` y `B603`.
 
 ---
 
 ## [3.0] - Versión estable
 
-- Estabilización de las mejoras introducidas en `2.5_dev`.
 - Interfaz organizada en las pestañas **Convertir**, **Personalizar** y **Ayuda**.
 - Logo institucional opcional en PNG, JPG o JPEG.
-- Conservación de la transparencia en imágenes PNG.
 - Redimensionado proporcional del logo hasta 100 píxeles de altura.
-- Título situado debajo del logo.
 - Institución y directorios personalizables.
 - Preferencias persistentes en `%APPDATA%`.
-- Gestión visual de facturas en modo lote.
+- Gestión visual y editable de facturas en modo lote.
 - Conversión en segundo plano.
-- Mayor altura de la ventana y del listado de facturas.
 - Nombre de salida del lote con el patrón `Lote_[primera factura]_Alma.xlsx`.
-- Cambio de licencia a `GPL-3.0-only`.
+- Licencia `GPL-3.0-only`.
 
 ---
 
@@ -100,7 +135,7 @@ python -m pip install openpyxl defusedxml pillow
 
 - Introdujo la interfaz por pestañas.
 - Añadió preferencias persistentes.
-- Añadió la lista visual y editable de facturas de lote.
+- Añadió la lista visual de facturas de lote.
 - Incorporó detección de rutas y facturas duplicadas.
 - Incorporó conversión en segundo plano.
 - Añadió mensajes finales diferenciados según existieran incidencias.
@@ -131,7 +166,6 @@ python -m pip install openpyxl defusedxml pillow
 ## [1.2_dev] - Versión de desarrollo
 
 - Sustituyó el parser XML estándar por `defusedxml`.
-- Añadió protección frente a estructuras XML peligrosas.
 - Añadió sanitización de textos escritos en Excel.
 - Reforzó la comprobación de rutas.
 
@@ -169,6 +203,7 @@ La comparación con `Quantity for Pricing` es una ayuda para la revisión y no u
 
 ```text
 Versión estable: 3.1
+Versión de desarrollo: 3.2_dev
 Rama estable: stable
 Rama de desarrollo: dev
 ```
