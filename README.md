@@ -2,62 +2,101 @@
 
 **FacturaeToAlma** es una aplicación de escritorio desarrollada en Python para convertir facturas electrónicas XSIG, XML o TXT a un fichero Excel compatible con la carga de facturas en Alma.
 
-La aplicación se orienta inicialmente a facturas procedentes de Universitas XXI y FACe, pero permite personalizar la institución, sus directorios de trabajo y su logo para facilitar el uso por otras bibliotecas.
+La aplicación se orienta inicialmente a facturas procedentes de Universitas XXI y FACe, pero permite personalizar la institución, los directorios de trabajo y el logo para facilitar su utilización por otras bibliotecas.
 
 ## Estado del proyecto
 
 - **Versión estable actual:** `3.1`
+- **Versión de desarrollo actual:** `3.2_dev`
 - **Rama estable:** `stable`
 - **Rama de desarrollo:** `dev`
 - **Licencia:** GNU General Public License 3.0 únicamente (`GPL-3.0-only`)
 
-## Novedades de la versión 3.1
+Las versiones `dev` deben probarse con facturas reales antes de promoverse a la rama estable.
 
-La versión `3.1` mantiene las funcionalidades de `3.0` y refuerza la seguridad y la trazabilidad a partir de un análisis estático efectuado con Bandit.
+## Novedades de 3.2_dev
 
-### Apertura segura de carpetas
+La versión `3.2_dev` mejora la localización de PO Lines por título, especialmente en facturas de:
 
-La aplicación normaliza y valida la carpeta de salida antes de abrirla:
+- bases de datos;
+- plataformas electrónicas;
+- paquetes de recursos;
+- suscripciones;
+- servicios con descripciones comerciales extensas.
 
-- convierte la ruta a absoluta;
-- resuelve enlaces y componentes mediante `os.path.realpath()`;
-- comprueba que la ruta sea un directorio existente.
+### Inclusión segura de títulos
 
-En Windows se mantiene `os.startfile()`, que es el mecanismo nativo para abrir la carpeta.
+Cuando no existe una coincidencia válida por ISBN o ISSN, la aplicación compara títulos en este orden:
 
-En macOS y Linux:
+1. Coincidencia exacta del título normalizado.
+2. Inclusión segura de una secuencia completa de palabras.
+3. Similitud textual tradicional.
 
-- se determina la utilidad correspondiente, `open` o `xdg-open`;
-- se obtiene su ruta mediante `shutil.which()`;
-- se exige una ruta absoluta;
-- se ejecuta mediante `subprocess.run()`;
-- se utiliza expresamente `shell=False`.
+La normalización ignora:
 
-### Mejora del tratamiento de excepciones
+- mayúsculas y minúsculas;
+- tildes y signos diacríticos;
+- puntuación y separadores;
+- stopwords incluidas en el programa.
 
-Si Tkinter no puede aplicar el tema gráfico `clam`, la aplicación:
+Por ejemplo:
 
-- captura específicamente `tk.TclError`;
-- registra la incidencia en el log;
-- continúa utilizando el tema gráfico disponible.
+```text
+MATHSCINET - ONLINE PACKAGE
+```
 
-Se elimina así el antiguo bloque que ignoraba silenciosamente cualquier excepción.
+puede relacionarse con:
 
-### Anotaciones de Bandit
+```text
+MathSciNet
+```
 
-Los usos revisados de `subprocess` y `os.startfile()` incluyen anotaciones `# nosec` limitadas a comprobaciones concretas:
+También se puede reconocer un nombre distintivo como `AENORmás` dentro de una descripción comercial extensa.
 
-- `B404`;
-- `B606`;
-- `B603`.
+### Prevención de falsos positivos
 
-Estas anotaciones documentan decisiones revisadas y no desactivan globalmente el análisis de seguridad.
+La inclusión se realiza por palabras completas. Por tanto:
+
+```text
+art
+```
+
+no coincide con:
+
+```text
+artificial
+```
+
+Para títulos de una sola palabra se exige:
+
+- un mínimo de cinco caracteres;
+- que no se trate de un término genérico.
+
+Se excluyen como identificadores únicos términos como:
+
+- `online`;
+- `package`;
+- `database`;
+- `subscription`;
+- `platform`;
+- `service`;
+- y equivalentes en español incluidos en el código.
+
+Si varias PO Lines cumplen la inclusión, la aplicación no selecciona ninguna automáticamente y genera `TITULO AMBIGUO`.
+
+### Prioridad de identificadores
+
+La prioridad general continúa siendo:
+
+1. ISBN.
+2. ISSN.
+3. Título.
+
+Por ello, la nueva lógica de inclusión no afecta a un libro o revista cuando ya se ha encontrado una coincidencia válida por ISBN o ISSN.
 
 ## Dependencias
 
-### Dependencias externas
-
-Para ejecutar el código fuente se necesita:
+Para ejecutar el código fuente se requieren:
 
 ```bash
 python -m pip install openpyxl defusedxml pillow
@@ -65,38 +104,32 @@ python -m pip install openpyxl defusedxml pillow
 
 Paquetes externos:
 
-- `openpyxl`: lectura y escritura de ficheros Excel;
+- `openpyxl`: lectura y escritura de Excel;
 - `defusedxml`: procesamiento seguro de XML;
 - `Pillow`: carga y redimensionado del logo institucional.
 
-### Biblioteca estándar
-
-`shutil` forma parte de la biblioteca estándar de Python. No debe instalarse mediante `pip`.
-
-También pertenecen a la biblioteca estándar módulos como `os`, `sys`, `json`, `queue`, `threading`, `re`, `logging`, `subprocess`, `platform`, `datetime`, `decimal`, `difflib` y `tkinter`.
+`shutil` y el resto de módulos auxiliares utilizados pertenecen a la biblioteca estándar de Python.
 
 ## Comprobación y ejecución
 
 Comprobación de sintaxis:
 
 ```bash
-python -m py_compile facturae_to_alma_3_1.py
+python -m py_compile facturae_to_alma_3_2_dev.py
 ```
 
 Ejecución:
 
 ```bash
-python facturae_to_alma_3_1.py
+python facturae_to_alma_3_2_dev.py
 ```
 
 Auditoría con Bandit:
 
 ```bash
 python -m pip install bandit
-python -m bandit -r facturae_to_alma_3_1.py
+python -m bandit -r facturae_to_alma_3_2_dev.py
 ```
-
-Las anotaciones específicas `# nosec` deberían evitar que Bandit vuelva a informar de los usos revisados, sin ocultar otros hallazgos futuros.
 
 ## Interfaz
 
@@ -104,70 +137,22 @@ La aplicación se organiza en tres pestañas:
 
 ### Convertir
 
-Contiene:
-
-- factura individual;
-- modo lote;
-- selección del informe de Alma Analytics;
-- selección de la plantilla de Alma;
-- destino del Excel final;
-- conversión y gestión de la salida;
-- estado del proceso.
+Contiene la conversión individual, el modo lote, la selección del informe de Alma Analytics, la plantilla, el destino y el estado del proceso.
 
 ### Personalizar
 
-Permite configurar:
-
-- institución;
-- directorio de facturas FACe;
-- directorio del fichero Excel de Alma Analytics;
-- directorio de plantilla Alma;
-- directorio de Excel finales;
-- logo institucional opcional.
+Permite configurar la institución, los directorios de trabajo y un logo opcional.
 
 ### Ayuda
 
 Incluye instrucciones, limitaciones conocidas, licencia y enlaces al repositorio y a la Biblioguía.
-
-## Logo institucional
-
-Se admiten:
-
-- PNG, incluida la transparencia;
-- JPG;
-- JPEG.
-
-El logo:
-
-- aparece encima del título;
-- mantiene sus proporciones;
-- se reduce hasta un máximo de 100 píxeles de altura;
-- no se amplía cuando es más pequeño.
-
-La aplicación guarda la ruta del logo, no una copia de la imagen.
-
-## Preferencias
-
-La configuración se guarda normalmente en:
-
-```text
-%APPDATA%\FacturaeToAlma\config.json
-```
-
-Puede incluir:
-
-- institución;
-- directorios personalizados;
-- últimos directorios utilizados;
-- última plantilla;
-- ruta del logo.
 
 ## Uso con una factura individual
 
 1. Abre **Convertir**.
 2. Selecciona **Factura individual**.
 3. Elige la factura XSIG/XML/TXT.
-4. Selecciona el fichero Excel de Alma Analytics.
+4. Selecciona el fichero de Alma Analytics.
 5. Selecciona la plantilla Excel de Alma.
 6. Revisa el destino.
 7. Pulsa **Convertir a formato Alma**.
@@ -179,18 +164,36 @@ Puede incluir:
 2. Añade las facturas.
 3. Revisa número, proveedor y fichero.
 4. Elimina u ordena elementos si es necesario.
-5. Selecciona un único fichero Excel de Alma Analytics.
+5. Selecciona un único fichero de Alma Analytics.
 6. Selecciona la plantilla.
-7. Revisa el nombre de salida propuesto.
+7. Revisa el nombre de salida.
 8. Ejecuta la conversión.
-
-La aplicación detecta rutas repetidas, números de factura duplicados, facturas ilegibles y proveedores distintos.
 
 El nombre propuesto para un lote sigue este patrón:
 
 ```text
 Lote_[nombre de la primera factura]_Alma.xlsx
 ```
+
+## Criterios de emparejamiento
+
+### ISBN
+
+Es el primer criterio. Cuando existe una coincidencia válida, no se ejecuta la búsqueda por título.
+
+### ISSN
+
+Se utiliza después del ISBN. Cuando existe una coincidencia válida, no se ejecuta la búsqueda por título.
+
+### Título
+
+Si no se encuentra ISBN o ISSN, se aplica:
+
+1. igualdad exacta normalizada;
+2. inclusión segura;
+3. puntuación de similitud.
+
+Si hay varias candidatas suficientemente próximas, se genera `TITULO AMBIGUO`.
 
 ## Columnas requeridas en Alma Analytics
 
@@ -208,7 +211,7 @@ Cuando están disponibles, también se utilizan `Fourth Reporting Code`, `Fifth 
 
 ## Control de cantidades
 
-`IL > Quantity` siempre conserva el número de ejemplares indicado en la factura XML.
+`IL > Quantity` conserva siempre el número de ejemplares indicado en la factura XML.
 
 `Quantity for Pricing` se utiliza exclusivamente como control:
 
@@ -229,24 +232,36 @@ Avisos habituales:
 - `TITULO AMBIGUO`
 - `REVISAR CANTIDAD`
 
+Cuando la ambigüedad procede del título, el mensaje indica el método utilizado, por ejemplo `EXACT`, `CONTAINMENT` o `SIMILARITY`.
+
 ## Seguridad
 
-- XML procesado con `defusedxml`.
+- XML procesado mediante `defusedxml`.
 - Bloqueo de estructuras XML peligrosas.
 - Sanitización de textos antes de escribirlos en Excel.
-- Ejecución externa sin `shell=True`.
-- Resolución de rutas de ejecutables con `shutil.which()`.
+- Ejecución externa con `shell=False`.
+- Resolución de ejecutables mediante `shutil.which()`.
 - Validación de carpetas antes de abrirlas.
-- Preferencias JSON sin credenciales.
+- Configuración JSON sin credenciales.
 - Registro de incidencias en `facturae_alma.log`.
+
+## Logo y preferencias
+
+La configuración se guarda normalmente en:
+
+```text
+%APPDATA%\FacturaeToAlma\config.json
+```
+
+El logo puede ser PNG, JPG o JPEG. Los PNG conservan la transparencia y la altura máxima visible es de 100 píxeles.
+
+La aplicación guarda la ruta del logo, no una copia de la imagen.
 
 ## Empaquetado para Windows
 
 ```bash
-python -m PyInstaller --clean --onefile --windowed --noupx --name "FacturaeToAlma_3_1" --collect-submodules=openpyxl --collect-data=openpyxl --collect-all=defusedxml --collect-all=PIL facturae_to_alma_3_1.py
+python -m PyInstaller --clean --onefile --windowed --noupx --name "FacturaeToAlma_3_2_dev" --collect-submodules=openpyxl --collect-data=openpyxl --collect-all=defusedxml --collect-all=PIL facturae_to_alma_3_2_dev.py
 ```
-
-El ejecutable correctamente empaquetado puede ejecutarse sin instalar Python ni las dependencias externas.
 
 ## Limitaciones conocidas de Alma
 
@@ -255,17 +270,11 @@ Soporte de Ex Libris confirmó que la plantilla Excel actual no permite:
 - indicar `Line Exclusive` o «Línea exclusiva»;
 - indicar explícitamente si una línea queda parcial o completamente facturada.
 
-La comparación con `Quantity for Pricing` es una ayuda para la revisión, no un estado transmitido a Alma.
+La comparación con `Quantity for Pricing` es una ayuda para la revisión y no un estado transmitido a Alma.
 
 ## Licencia
 
 El proyecto se distribuye bajo la **GNU General Public License version 3.0 only** (`GPL-3.0-only`).
-
-La cabecera SPDX del código es:
-
-```text
-SPDX-License-Identifier: GPL-3.0-only
-```
 
 ## Enlaces
 
